@@ -20,7 +20,7 @@ export default function App() {
 
   async function loadAll() {
     try {
-      setError("");
+     
       const [c, s, n, b, r, e] = await Promise.all([
         api.city(),
         api.stats(),
@@ -35,6 +35,7 @@ export default function App() {
       setBuildings(b);
       setResidents(r);
       setEvents(e);
+            setError("");
       setSelectedBuilding((prev) => (prev ? b.find((x) => x.id === prev.id) || null : null));
       setSelectedResident((prev) => (prev ? r.find((x) => x.id === prev.id) || null : null));
       setPaper(await api.newspaper());
@@ -44,6 +45,7 @@ export default function App() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll();
   }, []);
 
