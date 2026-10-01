@@ -50,3 +50,10 @@ class Event(Base):
     day: Mapped[int]
     kind: Mapped[str] = mapped_column(String(50))
     description: Mapped[str] = mapped_column(Text)
+
+class Newspaper(Base):
+    __tablename__ = "newspapers"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    day: Mapped[int] = mapped_column(unique=True)
+    headline: Mapped[str] = mapped_column(String(300))
+    content: Mapped[str] = mapped_column(Text)

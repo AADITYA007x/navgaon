@@ -1,16 +1,22 @@
+import json
 from fastapi import FastAPI, Depends
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from .database import get_db
-from .models import City, Neighborhood, Building, Resident, Event
+from .models import City, Neighborhood, Building, Resident, Event, Newspaper
 from .simulation import advance_day
 from .generate import generate_city
+from .newspaper import write_edition
 
 app = FastAPI(title="Navgaon API")
 
 
 def to_dict(obj):
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+
+
+def paper_dict(p):
+    return {"day": p.day, "headline": p.headline, "articles": json.loads(p.content)}
 
 
 @app.get("/")
@@ -74,8 +80,9 @@ def get_events(day: int | None = None, limit: int = 100, db: Session = Depends(g
 @app.post("/simulate/next-day")
 def next_day(db: Session = Depends(get_db)):
     day = advance_day(db)
-    events = db.scalars(select(Event).where(Event.day == day))
-    return {"day": day, "events": [to_dict(e) for e in events]}
+    events = [to_dict(e) for e in db.scalars(select(Event).where(Event.day == day))]
+    paper = write_edition(db, day)
+    return {"day": day, "events": events, "newspaper": paper_dict(paper)}
 
 
 @app.post("/simulate/{days}")
@@ -91,3 +98,26 @@ def simulate_days(days: int, db: Session = Depends(get_db)):
 def reset(seed: int | None = None):
     generate_city(seed=seed)
     return {"message": "City regenerated"}
+
+
+@app.get("/newspaper/latest")
+def latest_newspaper(db: Session = Depends(get_db)):
+    day = db.scalar(select(City.day))
+    return paper_dict(write_edition(db, day))
+
+
+@app.get("/newspaper/{day}")
+def newspaper_for_day(day: int, db: Session = Depends(get_db)):
+    current = db.scalar(select(City.day))
+    if day < 1 or day > current:
+        return {"error": "That day hasn't happened yet"}
+    return paper_dict(write_edition(db, day))
+
+
+@app.post("/newspaper/{day}/rewrite")
+def rewrite_newspaper(day: int, db: Session = Depends(get_db)):
+    existing = db.scalar(select(Newspaper).where(Newspaper.day == day))
+    if existing:
+        db.delete(existing)
+        db.commit()
+    return paper_dict(write_edition(db, day))
