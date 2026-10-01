@@ -1,5 +1,6 @@
 import json
 from fastapi import FastAPI, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 from .database import get_db
@@ -7,9 +8,15 @@ from .models import City, Neighborhood, Building, Resident, Event, Newspaper
 from .simulation import advance_day
 from .generate import generate_city
 from .newspaper import write_edition
+from .actions import list_actions, apply_action
 
 app = FastAPI(title="Navgaon API")
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def to_dict(obj):
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
@@ -121,3 +128,13 @@ def rewrite_newspaper(day: int, db: Session = Depends(get_db)):
         db.delete(existing)
         db.commit()
     return paper_dict(write_edition(db, day))
+
+
+@app.get("/actions")
+def get_actions(db: Session = Depends(get_db)):
+    return list_actions(db)
+
+
+@app.post("/actions/{key}")
+def do_action(key: str, db: Session = Depends(get_db)):
+    return apply_action(db, key)
