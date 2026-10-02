@@ -39,7 +39,13 @@ export default function SidePanel({ building, resident, residents, buildings, on
           </dd>
           <dt>Works at</dt>
           <dd>
-            {work ? <button className="link" onClick={() => onSelectBuilding(work)}>{work.name}</button> : "—"}
+            {work ? (
+              <button className="link" onClick={() => onSelectBuilding(work)}>{work.name}</button>
+            ) : ["Student", "Retired", "Child", "Unemployed"].includes(resident.job) ? (
+              "—"
+            ) : (
+              "Works independently"
+            )}
           </dd>
           <dt>Partner</dt>
           <dd>

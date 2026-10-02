@@ -2,13 +2,12 @@ import random
 from faker import Faker
 from .database import Base, engine, SessionLocal
 from .models import City, Neighborhood, Building, Resident, Event
+from .jobs import SHOP_TYPES, assign_job
 
 fake = Faker("en_IN")
 
 NEIGHBORHOOD_NAMES = ["Old Market", "Riverside", "Station Road", "Hill View", "Civil Lines", "Mill Colony"]
-SHOP_TYPES = ["Bakery", "Tea Stall", "Kirana Store", "Tailor", "Pharmacy", "Barber", "Sweet Shop", "Hardware Store"]
 CIVIC = ["School", "Hospital", "Police Station", "Town Hall", "Library", "Temple"]
-JOBS = ["Teacher", "Doctor", "Farmer", "Clerk", "Driver", "Engineer", "Shopkeeper", "Nurse", "Police Officer", "Mechanic"]
 TRAITS = ["kind", "stubborn", "ambitious", "lazy", "honest", "gossipy", "generous", "grumpy", "cheerful", "shy"]
 
 
@@ -60,7 +59,7 @@ def generate_city(name="Navgaon", population=200, seed=None):
         elif age >= 65:
             job, work = "Retired", None
         else:
-            job, work = random.choice(JOBS), random.choice(workplaces).id
+            job, work = assign_job(workplaces)
 
         db.add(Resident(
             name=f"{first} {fake.last_name()}",

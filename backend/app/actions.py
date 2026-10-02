@@ -2,7 +2,7 @@ import random
 from faker import Faker
 from sqlalchemy import select
 from .models import City, Neighborhood, Building, Resident, Event
-from .generate import SHOP_TYPES, JOBS
+from .jobs import SHOP_TYPES, assign_job, jobs_for
 
 fake = Faker("en_IN")
 
@@ -80,7 +80,7 @@ def apply_action(db, key):
         db.flush()
         hired = random.sample(unemployed, min(2, len(unemployed)))
         for r in hired:
-            r.job = "Shopkeeper"
+            r.job = random.choice(jobs_for(shop))
             r.workplace_id = shop.id
         msg = f"{shop.name} opened its doors in {n.name}."
         if hired:
@@ -90,9 +90,7 @@ def apply_action(db, key):
         workplaces = shops + civic
         hired = random.sample(unemployed, min(5, len(unemployed))) if workplaces else []
         for r in hired:
-            w = random.choice(workplaces)
-            r.job = random.choice(JOBS)
-            r.workplace_id = w.id
+            r.job, r.workplace_id = assign_job(workplaces)
         if hired:
             msg = f"A job fair at the Town Hall found work for {len(hired)} residents."
         else:

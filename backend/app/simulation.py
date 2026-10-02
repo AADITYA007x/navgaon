@@ -3,7 +3,8 @@ from faker import Faker
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from .models import City, Neighborhood, Building, Resident, Event
-from .generate import SHOP_TYPES, JOBS, TRAITS
+from .generate import TRAITS
+from .jobs import SHOP_TYPES, assign_job, with_article
 
 fake = Faker("en_IN")
 DAYS_PER_YEAR = 30
@@ -113,12 +114,13 @@ def advance_day(db: Session):
         log(db, day, "shop_opened", f"{s.name} opened where {old_name} used to be.")
 
     open_workplaces = [s for s in shops if s.is_open] + civic
+    by_building = {b.id: b for b in open_workplaces}
     for r in living:
-        if r.job == "Unemployed" and open_workplaces and random.random() < 0.05:
-            w = random.choice(open_workplaces)
-            r.job = random.choice(JOBS)
-            r.workplace_id = w.id
-            log(db, day, "new_job", f"{r.name} found work at {w.name} ({r.job}).")
+        if r.job == "Unemployed" and random.random() < 0.05:
+            r.job, r.workplace_id = assign_job(open_workplaces)
+            w = by_building.get(r.workplace_id)
+            where = f" at {w.name}" if w else ""
+            log(db, day, "new_job", f"{r.name} started work{where} as {with_article(r.job)}.")
 
     if neighborhoods and random.random() < 0.15:
         n = random.choice(neighborhoods)
