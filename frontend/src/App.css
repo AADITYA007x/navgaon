@@ -330,3 +330,59 @@ button:disabled {
 .auto-badge b {
   color: var(--accent);
 }
+.map-wrap {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.building {
+  cursor: pointer;
+}
+
+.building .bicon {
+  transition: transform 0.15s ease;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.building:hover .bicon {
+  transform: scale(1.35);
+}
+
+.pulse {
+  fill: none;
+  stroke: #e24b4a;
+  stroke-width: 1.2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse 1.4s ease-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.river-flow {
+  animation: flow 3s linear infinite;
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse,
+  .river-flow {
+    animation: none;
+  }
+}
