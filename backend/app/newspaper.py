@@ -3,6 +3,7 @@ import json
 from dotenv import load_dotenv
 from groq import Groq
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from .models import City, Event, Newspaper
 
 load_dotenv()
@@ -70,5 +71,9 @@ def write_edition(db, day):
         content=json.dumps(data.get("articles", [])),
     )
     db.add(paper)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        paper = db.scalar(select(Newspaper).where(Newspaper.day == day))
     return paper

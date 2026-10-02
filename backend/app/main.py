@@ -1,16 +1,54 @@
+import os
 import json
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from .database import get_db
+from .database import get_db, SessionLocal
 from .models import City, Neighborhood, Building, Resident, Event, Newspaper
 from .simulation import advance_day
 from .generate import generate_city
 from .newspaper import write_edition
 from .actions import list_actions, apply_action
 
-app = FastAPI(title="Navgaon API")
+load_dotenv()
+AUTO_RUN_MINUTES = float(os.getenv("AUTO_RUN_MINUTES", "0"))
+scheduler = BackgroundScheduler()
+
+
+def auto_advance():
+    db = SessionLocal()
+    try:
+        day = advance_day(db)
+        write_edition(db, day)
+        print(f"Auto-run: advanced to day {day}")
+    except Exception as e:
+        print("Auto-run error:", e)
+    finally:
+        db.close()
+
+
+@asynccontextmanager
+async def lifespan(app):
+    if AUTO_RUN_MINUTES > 0:
+        scheduler.add_job(
+            auto_advance,
+            "interval",
+            minutes=AUTO_RUN_MINUTES,
+            id="auto_advance",
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.start()
+    yield
+    if scheduler.running:
+        scheduler.shutdown(wait=False)
+
+
+app = FastAPI(title="Navgaon API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -138,3 +176,13 @@ def get_actions(db: Session = Depends(get_db)):
 @app.post("/actions/{key}")
 def do_action(key: str, db: Session = Depends(get_db)):
     return apply_action(db, key)
+
+
+@app.get("/autorun")
+def get_autorun():
+    job = scheduler.get_job("auto_advance") if scheduler.running else None
+    return {
+        "enabled": job is not None,
+        "minutes": AUTO_RUN_MINUTES,
+        "next_run": job.next_run_time.isoformat() if job else None,
+    }
