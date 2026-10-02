@@ -286,3 +286,38 @@ button:disabled {
 .timeline .muted {
   min-width: 56px;
 }
+.townhall {
+  margin-bottom: 16px;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 10px 12px;
+}
+
+.action-name {
+  font-weight: 600;
+}
+
+.action-desc {
+  font-size: 12px;
+}
+
+.action-message {
+  margin-top: 10px;
+  font-size: 14px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  padding: 8px 12px;
+  border-radius: 8px;
+}

@@ -3,6 +3,7 @@ import { api } from "./api";
 import CityMap from "./components/CityMap";
 import Newspaper from "./components/Newspaper";
 import SidePanel from "./components/SidePanel";
+import TownHall from "./components/TownHall";
 import "./App.css";
 
 export default function App() {
@@ -13,6 +14,8 @@ export default function App() {
   const [residents, setResidents] = useState([]);
   const [events, setEvents] = useState([]);
   const [paper, setPaper] = useState(null);
+  const [actionsInfo, setActionsInfo] = useState(null);
+  const [actionMessage, setActionMessage] = useState("");
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedResident, setSelectedResident] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -20,14 +23,14 @@ export default function App() {
 
   async function loadAll() {
     try {
-     
-      const [c, s, n, b, r, e] = await Promise.all([
+      const [c, s, n, b, r, e, a] = await Promise.all([
         api.city(),
         api.stats(),
         api.neighborhoods(),
         api.buildings(),
         api.residents(),
         api.events(40),
+        api.actions(),
       ]);
       setCity(c);
       setStats(s);
@@ -35,7 +38,8 @@ export default function App() {
       setBuildings(b);
       setResidents(r);
       setEvents(e);
-            setError("");
+      setActionsInfo(a);
+      setError("");
       setSelectedBuilding((prev) => (prev ? b.find((x) => x.id === prev.id) || null : null));
       setSelectedResident((prev) => (prev ? r.find((x) => x.id === prev.id) || null : null));
       setPaper(await api.newspaper());
@@ -51,8 +55,21 @@ export default function App() {
 
   async function run(action) {
     setBusy(true);
+    setActionMessage("");
     try {
       await action();
+      await loadAll();
+    } catch {
+      setError("Something went wrong. Check the backend terminal for errors.");
+    }
+    setBusy(false);
+  }
+
+  async function handleAction(key) {
+    setBusy(true);
+    try {
+      const res = await api.doAction(key);
+      setActionMessage(res.error || `${res.message} Tomorrow's newspaper will report it.`);
       await loadAll();
     } catch {
       setError("Something went wrong. Check the backend terminal for errors.");
@@ -107,6 +124,8 @@ export default function App() {
       </header>
 
       {error && <div className="error">{error}</div>}
+
+      <TownHall info={actionsInfo} busy={busy} message={actionMessage} onAction={handleAction} />
 
       <div className="grid">
         <CityMap
