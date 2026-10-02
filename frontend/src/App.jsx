@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import CityMap from "./components/CityMap";
 import Newspaper from "./components/Newspaper";
@@ -16,14 +16,17 @@ export default function App() {
   const [paper, setPaper] = useState(null);
   const [actionsInfo, setActionsInfo] = useState(null);
   const [actionMessage, setActionMessage] = useState("");
+  const [autorun, setAutorun] = useState(null);
+  const [now, setNow] = useState(Date.now());
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedResident, setSelectedResident] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const dayRef = useRef(null);
 
   async function loadAll() {
     try {
-      const [c, s, n, b, r, e, a] = await Promise.all([
+      const [c, s, n, b, r, e, a, au] = await Promise.all([
         api.city(),
         api.stats(),
         api.neighborhoods(),
@@ -31,14 +34,17 @@ export default function App() {
         api.residents(),
         api.events(40),
         api.actions(),
+        api.autorun(),
       ]);
       setCity(c);
       setStats(s);
+      dayRef.current = s.day;
       setNeighborhoods(n);
       setBuildings(b);
       setResidents(r);
       setEvents(e);
       setActionsInfo(a);
+      setAutorun(au);
       setError("");
       setSelectedBuilding((prev) => (prev ? b.find((x) => x.id === prev.id) || null : null));
       setSelectedResident((prev) => (prev ? r.find((x) => x.id === prev.id) || null : null));
@@ -51,6 +57,22 @@ export default function App() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll();
+
+    const poll = setInterval(async () => {
+      try {
+        const s = await api.stats();
+        if (s.day !== dayRef.current) loadAll();
+      } catch {
+        // backend not reachable, try again next time
+      }
+    }, 15000);
+
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+
+    return () => {
+      clearInterval(poll);
+      clearInterval(tick);
+    };
   }, []);
 
   async function run(action) {
@@ -96,6 +118,15 @@ export default function App() {
     setSelectedResident(r);
   }
 
+  function countdown() {
+    if (!autorun?.enabled || !autorun.next_run) return null;
+    const ms = new Date(autorun.next_run).getTime() - now;
+    if (ms <= 0) return "any moment";
+    const m = Math.floor(ms / 60000);
+    const s = Math.floor((ms % 60000) / 1000);
+    return `${m}m ${s}s`;
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -110,6 +141,11 @@ export default function App() {
               <span>Married <b>{stats.married}</b></span>
               <span>Unemployed <b>{stats.unemployed}</b></span>
               <span>Open shops <b>{stats.open_shops}</b></span>
+            </div>
+          )}
+          {autorun?.enabled && (
+            <div className="auto-badge">
+              Auto-run on · next day in <b>{countdown()}</b>
             </div>
           )}
         </div>

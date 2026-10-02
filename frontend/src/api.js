@@ -16,6 +16,7 @@ export const api = {
   newspaper: (day) => request(day ? `/newspaper/${day}` : "/newspaper/latest"),
   nextDay: () => request("/simulate/next-day", { method: "POST" }),
     simulate: (days) => request(`/simulate/${days}`, { method: "POST" }),
-    actions: () => request("/actions"),
+  actions: () => request("/actions"),
+    autorun: () => request("/autorun"),
   doAction: (key) => request(`/actions/${key}`, { method: "POST" }),
 };
