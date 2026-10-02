@@ -3,11 +3,11 @@ import json
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
-from .database import get_db, SessionLocal
+from .database import get_db, SessionLocal, Base, engine
 from .models import City, Neighborhood, Building, Resident, Event, Newspaper
 from .simulation import advance_day
 from .generate import generate_city
@@ -33,6 +33,15 @@ def auto_advance():
 
 @asynccontextmanager
 async def lifespan(app):
+    Base.metadata.create_all(engine)
+    db = SessionLocal()
+    try:
+        has_city = db.scalar(select(City)) is not None
+    finally:
+        db.close()
+    if not has_city:
+        generate_city()
+
     if AUTO_RUN_MINUTES > 0:
         scheduler.add_job(
             auto_advance,
@@ -47,11 +56,14 @@ async def lifespan(app):
     if scheduler.running:
         scheduler.shutdown(wait=False)
 
-
 app = FastAPI(title="Navgaon API", lifespan=lifespan)
+ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+if os.getenv("FRONTEND_URL"):
+    ALLOWED_ORIGINS.append(os.getenv("FRONTEND_URL").rstrip("/"))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -186,3 +198,14 @@ def get_autorun():
         "minutes": AUTO_RUN_MINUTES,
         "next_run": job.next_run_time.isoformat() if job else None,
     }
+
+
+CRON_SECRET = os.getenv("CRON_SECRET", "")
+
+
+@app.get("/cron/advance")
+def cron_advance(key: str = ""):
+    if not CRON_SECRET or key != CRON_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    auto_advance()
+    return {"ok": True}
