@@ -1,15 +1,17 @@
 import random
 from faker import Faker
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
-from .models import City, Neighborhood, Building, Resident, Event
+from .models import City, Neighborhood, Building, Resident, Event, Newspaper
 from .generate import TRAITS
 from .jobs import SHOP_TYPES, assign_job, with_article
 
 fake = Faker("en_IN")
 DAYS_PER_YEAR = 30
 ORIGIN_CITIES = ["Pune", "Nashik", "Mumbai", "Nagpur", "Surat", "Indore", "Kolhapur", "Aurangabad"]
-
+MAX_POPULATION = 400
+MAX_HOMES = 110
+KEEP_DAYS = 365
 
 CITY_EVENTS = [
     "Heavy rain flooded the streets of {n}.",
@@ -77,7 +79,8 @@ def advance_day(db: Session):
             log(db, day, "marriage", f"{m.name} and {w.name} got married.")
 
     for w in living:
-        if w.gender == "female" and w.partner_id and 20 <= w.age <= 40 and random.random() < 0.012:
+        birth_chance = 0.012 if len(living) < MAX_POPULATION * 0.9 else 0.003
+        if w.gender == "female" and w.partner_id and 20 <= w.age <= 40 and random.random() < birth_chance:
             father = by_id.get(w.partner_id)
             if not father or not father.alive:
                 continue
@@ -94,7 +97,7 @@ def advance_day(db: Session):
             ))
             log(db, day, "birth", f"{w.name} and {father.name} welcomed a baby named {baby_name}.")
     homes = list(db.scalars(select(Building).where(Building.kind == "home")))
-    if homes and neighborhoods and len(living) / len(homes) > 4:
+    if homes and neighborhoods and len(homes) < MAX_HOMES and len(living) / len(homes) > 4:
         n = random.choice(neighborhoods)
         house = Building(
             kind="home",
@@ -108,7 +111,7 @@ def advance_day(db: Session):
         homes.append(house)
         log(db, day, "new_house", f"A new house was built in {n.name} as the town keeps growing.")
 
-    if homes and random.random() < 0.1:
+    if homes and len(living) < MAX_POPULATION * 0.9 and random.random() < 0.1:
         home = random.choice(homes)
         surname = fake.last_name()
         origin = random.choice(ORIGIN_CITIES)
@@ -191,6 +194,27 @@ def advance_day(db: Session):
     if neighborhoods and random.random() < 0.15:
         n = random.choice(neighborhoods)
         log(db, day, "city", random.choice(CITY_EVENTS).format(n=n.name))
+
+    if len(living) > MAX_POPULATION and random.random() < 0.3:
+        adults = [r for r in living if r.alive and r.age >= 18]
+        if adults:
+            leaver = random.choice(adults)
+            origin = random.choice(ORIGIN_CITIES)
+            partner = by_id.get(leaver.partner_id)
+            leaver.alive = False
+            leaver.workplace_id = None
+            if partner and partner.alive:
+                partner.alive = False
+                partner.workplace_id = None
+                log(db, day, "emigration", f"{leaver.name} and {partner.name} packed up and moved to {origin}.")
+            else:
+                log(db, day, "emigration", f"{leaver.name} moved away to {origin} for a fresh start.")
+
+    if day % 10 == 0:
+        cutoff = day - KEEP_DAYS
+        db.execute(delete(Event).where(Event.day < cutoff))
+        db.execute(delete(Newspaper).where(Newspaper.day < cutoff))
+        db.execute(delete(Resident).where(Resident.alive == False))
 
     db.commit()
     return day

@@ -53,6 +53,10 @@ def apply_action(db, key):
     civic = list(db.scalars(select(Building).where(Building.kind == "civic")))
     living = list(db.scalars(select(Resident).where(Resident.alive == True)))
     unemployed = [r for r in living if r.job == "Unemployed"]
+    if key == "new_shop":
+        total_shops = len(list(db.scalars(select(Building).where(Building.kind == "shop"))))
+        if total_shops >= 40:
+            return {"error": "The town already has plenty of shops. Try a different decision today."}
     n = random.choice(neighborhoods)
 
     if key == "festival":

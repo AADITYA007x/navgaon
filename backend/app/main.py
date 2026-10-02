@@ -144,7 +144,7 @@ def next_day(db: Session = Depends(get_db)):
 
 @app.post("/simulate/{days}")
 def simulate_days(days: int, db: Session = Depends(get_db)):
-    days = max(1, min(days, 365))
+    days = max(1, min(days, 30))
     day = None
     for _ in range(days):
         day = advance_day(db)

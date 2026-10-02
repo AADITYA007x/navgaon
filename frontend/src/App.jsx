@@ -17,7 +17,7 @@ export default function App() {
   const [actionsInfo, setActionsInfo] = useState(null);
   const [actionMessage, setActionMessage] = useState("");
   const [autorun, setAutorun] = useState(null);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(0);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [selectedResident, setSelectedResident] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -119,7 +119,7 @@ export default function App() {
   }
 
   function countdown() {
-    if (!autorun?.enabled || !autorun.next_run) return null;
+    if (!autorun?.enabled || !autorun.next_run || !now) return null;
     const ms = new Date(autorun.next_run).getTime() - now;
     if (ms <= 0) return "any moment";
     const m = Math.floor(ms / 60000);
