@@ -1,4 +1,5 @@
 import random
+from sqlalchemy import select
 from faker import Faker
 from .database import Base, engine, SessionLocal
 from .models import City, Neighborhood, Building, Resident, Event
@@ -11,6 +12,10 @@ CIVIC = ["School", "Hospital", "Police Station", "Town Hall", "Library", "Temple
 TRAITS = ["kind", "stubborn", "ambitious", "lazy", "honest", "gossipy", "generous", "grumpy", "cheerful", "shy"]
 
 
+def random_age():
+    bands = [(1, 17), (18, 35), (36, 55), (56, 70), (71, 85)]
+    band = random.choices(bands, weights=[30, 30, 22, 12, 6])[0]
+    return random.randint(*band)
 def generate_city(name="Navgaon", population=200, seed=None):
     if seed is not None:
         random.seed(seed)
@@ -50,7 +55,7 @@ def generate_city(name="Navgaon", population=200, seed=None):
     workplaces = shops + civic
 
     for _ in range(population):
-        age = random.randint(1, 85)
+        age = random_age()
         gender = random.choice(["male", "female"])
         first = fake.first_name_male() if gender == "male" else fake.first_name_female()
 
@@ -70,7 +75,14 @@ def generate_city(name="Navgaon", population=200, seed=None):
             home_id=random.choice(homes).id,
             workplace_id=work,
         ))
-
+    db.flush()
+    people = list(db.scalars(select(Resident)))
+    men = sorted([r for r in people if r.gender == "male" and 22 <= r.age <= 75], key=lambda r: r.age)
+    women = sorted([r for r in people if r.gender == "female" and 20 <= r.age <= 72], key=lambda r: r.age)
+    for m, w in zip(men, women):
+        if abs(m.age - w.age) <= 10 and random.random() < 0.7:
+            m.partner_id, w.partner_id = w.id, m.id
+            w.home_id = m.home_id
     db.add(Event(day=1, kind="founding", description=f"The city of {name} was founded with {population} residents."))
     db.commit()
     db.close()
